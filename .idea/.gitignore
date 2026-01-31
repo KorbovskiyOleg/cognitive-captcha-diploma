@@ -1,0 +1,44 @@
+# Виртуальные окружения
+venv/
+.venv/
+venvs/
+env/
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Данные и модели (обычно большие)
+data/processed/
+data/raw/
+models/saved_models/
+*.pth
+*.pkl
+*.h5
+
+# Логи
+logs/
+*.log
+
+# Временные файлы
+*.tmp
+*.temp
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
