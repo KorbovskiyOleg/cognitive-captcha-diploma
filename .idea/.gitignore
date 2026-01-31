@@ -42,3 +42,8 @@ logs/
 .DS_Store
 Thumbs.db
 
+/workspace.xml
+/vcs.xml
+/modules.xml
+/misc.xml
+/amplicode-jpa.xml
