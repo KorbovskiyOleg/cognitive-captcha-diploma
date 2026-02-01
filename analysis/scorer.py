@@ -49,14 +49,24 @@ def compute_latency(gaze_points, stimulus_time, movement_threshold=30):
 
 # нормализация latency - score
 def latency_score(latency):
-    if latency <= config.LATENCY_WINDOW:
-        return 1.0
-    if latency >= config.MAX_LATENCY:
+    if latency is None:
         return 0.0
 
-    return 1 - (latency - config.LATENCY_WINDOW) / (
-            config.MAX_LATENCY - config.LATENCY_WINDOW
-    )
+    # слишком быстро — не человек
+    if latency < config.MIN_LATENCY:
+        return 0.0
+
+    # оптимальная зона
+    if latency <= config.OPT_LATENCY:
+        return 1.0
+
+    # медленно — линейное падение
+    if latency <= config.MAX_LATENCY:
+        return 1 - (latency - config.OPT_LATENCY) / (
+                config.MAX_LATENCY - config.OPT_LATENCY
+        )
+
+    return 0.0
 
 #============================================================================================
 #                                  Приизнак №2 - Distance error(средняя ошибка расстояния)

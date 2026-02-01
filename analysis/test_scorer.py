@@ -57,8 +57,45 @@ def test_human():
     print("Details:", details)
     print()
 
+#================================================================================
+#                              Тест №2 - Робот
+#================================================================================
+# генератор траектории робота
+def generate_robot_trajectory(
+        start_x, start_y,
+        target_x, target_y,
+        stimulus_time
+):
+    # робот "телепортирует" взгляд
+    return [
+        (start_x, start_y, stimulus_time),
+        (target_x, target_y, stimulus_time)  # ❌ нулевая задержка
+    ]
+# функция теста
+def test_robot():
+    stimulus_time = time.time()
+
+    target_x, target_y = config.CORNERS["top_right"]
+    start_x, start_y = config.SCREEN_WIDTH / 2, config.SCREEN_HEIGHT / 2
+
+    gaze = generate_robot_trajectory(
+        start_x, start_y,
+        target_x, target_y,
+        stimulus_time
+    )
+
+    total, details = score_stimulus(
+        gaze, target_x, target_y, stimulus_time
+    )
+
+    print("=== ROBOT TEST ===")
+    print("Total score:", round(total, 3))
+    print("Details:", details)
+    print()
+
+
 
 if __name__ == "__main__":
     test_human()
-    #test_bad_behavior()
+    test_robot()
     #test_perfect_bot()
