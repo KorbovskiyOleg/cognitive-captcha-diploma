@@ -83,6 +83,18 @@ FEATURE_WEIGHTS = {
 LOWER_THRESHOLD = 0.65
 UPPER_THRESHOLD = 0.90
 
+#=======================================
+#  Session-level decision config
+#=======================================
+
+SESSION_HUMAN_THRESHOLD = 0.6     # средний score
+SESSION_ROBOT_THRESHOLD = 0.45    # ниже — точно не человек
+
+MIN_STDEV = 0.01                  # слишком стабильное поведение
+MAX_STDEV = 0.08                  # слишком хаотичное
+
+MIN_STIMULI = 3
+
 
 # ==============================
 # Ресурсы
