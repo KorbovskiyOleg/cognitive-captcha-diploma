@@ -13,7 +13,7 @@ from typing import List, Tuple
 
 import config
 
-# тип точки взгяда
+# тип точки взгляда
 GazePoint = Tuple[float, float, float]  # (x, y, t)
 
 # Евлкидово расстояние
@@ -34,13 +34,18 @@ def is_inside_bounds(x, y, target_x, target_y):
 #=======================================================================================
 #                             Признак №1 - Latancy(задержка реакции)
 #=========================================================================================
-def compute_latency(gaze_points: List[GazePoint], target_x, target_y, stimulus_time):
-    for x, y, t in gaze_points:
-        if is_inside_bounds(x, y, target_x, target_y):
-            latency = t - stimulus_time
-            return min(latency, config.MAX_LATENCY)
+def compute_latency(gaze_points, stimulus_time, movement_threshold=30):
+    if len(gaze_points) < 2:
+        return None
 
-    return config.MAX_LATENCY
+    x0, y0, _ = gaze_points[0]
+
+    for x, y, t in gaze_points[1:]:
+        dist = math.hypot(x - x0, y - y0)
+        if dist > movement_threshold:
+            return t - stimulus_time
+
+    return None
 
 # нормализация latency - score
 def latency_score(latency):
@@ -125,7 +130,7 @@ def angle_score(angle_error):
 #                               Общий score для одного стимула
 #=======================================================================================================
 def score_stimulus(gaze_points, target_x, target_y, stimulus_time):
-    latency = compute_latency(gaze_points, target_x, target_y, stimulus_time)
+    latency = compute_latency(gaze_points,stimulus_time)
     distance_err = compute_distance_error(gaze_points, target_x, target_y)
     angle_err = compute_angle_error(gaze_points, target_x, target_y)
     out_ratio = compute_out_of_bounds_ratio(
