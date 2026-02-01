@@ -9,7 +9,7 @@
 #
 #
 import math
-from typing import List, Tuple
+from typing import Tuple
 
 import config
 
@@ -20,7 +20,7 @@ GazePoint = Tuple[float, float, float]  # (x, y, t)
 def euclidean_distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-# проверяем , точка внутри рамки(основа для штрафов)
+# проверяем, точка внутри рамки(основа для штрафов)
 def is_inside_bounds(x, y, target_x, target_y):
     half_w = config.BOUND_BOX_WIDTH / 2
     half_h = config.BOUND_BOX_HEIGHT / 2
