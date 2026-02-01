@@ -93,9 +93,58 @@ def test_robot():
     print("Details:", details)
     print()
 
+#======================================================================================
+#                           Тест №3 - Случайный шум
+#====================================================================================
+# генератор шумовой траектории
+def generate_noise_trajectory(
+        start_x, start_y,
+        stimulus_time,
+        duration=2.0,
+        points=25
+):
+    gaze_points = []
+    t = stimulus_time
+
+    x, y = start_x, start_y
+
+    for _ in range(points):
+        # случайный скачок взгляда
+        x += random.uniform(-200, 200)
+        y += random.uniform(-200, 200)
+
+        # ограничиваем экраном
+        x = max(0, min(config.SCREEN_WIDTH, x))
+        y = max(0, min(config.SCREEN_HEIGHT, y))
+
+        gaze_points.append((x, y, t))
+        t += duration / points
+
+    return gaze_points
+
+# функция теста
+def test_noise():
+    stimulus_time = time.time()
+
+    target_x, target_y = config.CORNERS["top_right"]
+    start_x, start_y = config.SCREEN_WIDTH / 2, config.SCREEN_HEIGHT / 2
+
+    gaze = generate_noise_trajectory(
+        start_x, start_y,
+        stimulus_time
+    )
+
+    total, details = score_stimulus(
+        gaze, target_x, target_y, stimulus_time
+    )
+
+    print("=== NOISE TEST ===")
+    print("Total score:", round(total, 3))
+    print("Details:", details)
+    print()
 
 
 if __name__ == "__main__":
     test_human()
     test_robot()
-    #test_perfect_bot()
+    test_noise()
