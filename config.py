@@ -95,10 +95,23 @@ MAX_STDEV = 0.08                  # слишком хаотичное
 
 MIN_STIMULI = 3
 
+# ===== CAPTCHA SESSION =====
+
+STIMULUS_SEQUENCE = [
+    "top_left",
+    "top_right",
+    "bottom_left",
+    "bottom_right"
+]
+
+SESSION_THRESHOLD = 0.6        # порог для HUMAN
+
 
 # ==============================
 # Ресурсы
 # ==============================
+
+
 
 ASSETS_DIR = "assets/images"
 
