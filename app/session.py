@@ -39,7 +39,8 @@ class CognitiveCaptchaSession:
         # собрать gaze-данные
         gaze_points = self.eye_tracker.collect(
             start_time=stimulus_time,
-            duration=config.STIMULUS_DURATION
+            duration=config.STIMULUS_DURATION,
+            target = (target_x,target_y)
         )
 
         # локальный скоринг
