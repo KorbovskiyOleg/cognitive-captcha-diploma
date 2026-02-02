@@ -9,12 +9,13 @@
 
 from app.session import CognitiveCaptchaSession
 from tracking.dummy_tracker import DummyEyeTracker
+from tracking.human_simulator import HumanLikeEyeTracker
 from ui.stimulus_renderer import StimulusRenderer
 
 
 def main():
     session = CognitiveCaptchaSession(
-        eye_tracker=DummyEyeTracker(),
+        eye_tracker=HumanLikeEyeTracker(),
         stimulus_renderer=StimulusRenderer()
     )
 
