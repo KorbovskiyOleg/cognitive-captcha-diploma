@@ -34,16 +34,35 @@ def is_inside_bounds(x, y, target_x, target_y):
 #=======================================================================================
 #                             Признак №1 - Latancy(задержка реакции)
 #=========================================================================================
-def compute_latency(gaze_points, stimulus_time, movement_threshold=30):
-    if len(gaze_points) < 2:
+def compute_latency(
+        gaze_points,
+        stimulus_time,
+        min_step=6,          # минимальный шаг между точками
+        min_steps_count=3,   # сколько подряд шагов
+        total_threshold=20   # суммарное движение
+):
+    if len(gaze_points) < min_steps_count + 1:
         return None
 
-    x0, y0, _ = gaze_points[0]
+    consecutive_steps = 0
+    total_movement = 0.0
+
+    prev_x, prev_y, _ = gaze_points[0]
 
     for x, y, t in gaze_points[1:]:
-        dist = math.hypot(x - x0, y - y0)
-        if dist > movement_threshold:
+        step = math.hypot(x - prev_x, y - prev_y)
+
+        if step >= min_step:
+            consecutive_steps += 1
+            total_movement += step
+        else:
+            consecutive_steps = 0
+            total_movement = 0.0
+
+        if consecutive_steps >= min_steps_count and total_movement >= total_threshold:
             return t - stimulus_time
+
+        prev_x, prev_y = x, y
 
     return None
 
