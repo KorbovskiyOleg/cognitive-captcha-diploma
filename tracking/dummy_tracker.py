@@ -7,7 +7,7 @@ class DummyEyeTracker:
     Заглушка eye-tracker для тестирования сессии
     """
 
-    def collect(self, start_time, duration):
+    def collect(self, start_time, duration, target=None):
         points = []
         t = start_time
         x = config.SCREEN_WIDTH / 2
