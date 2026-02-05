@@ -11,6 +11,8 @@ import time
 
 from analysis.scorer import score_stimulus
 from analysis.session_scorer import score_session
+from analysis.dynamics.velocity import compute_velocity_profile
+from analysis.dynamics.velocity_validator import validate_velocity
 import config
 
 class CognitiveCaptchaSession:
@@ -42,6 +44,21 @@ class CognitiveCaptchaSession:
             duration=config.STIMULUS_DURATION,
             target = (target_x,target_y)
         )
+        # ==============================
+        # VELOCITY VALIDATION
+        # ==============================
+        profile = compute_velocity_profile(gaze_points)
+        validation = validate_velocity(profile)
+
+        if not validation.is_valid:
+            # движение не похоже на глазное
+            self.stimulus_scores.append(0.0)
+            self.raw_scores.append({
+                "velocity_validation": validation.reason,
+                "velocity_details": validation.details
+            })
+            return 0.0, {"velocity_validation": validation.reason}
+
 
         # локальный скоринг
         total, details = score_stimulus(
