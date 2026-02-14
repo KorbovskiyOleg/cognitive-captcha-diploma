@@ -13,6 +13,17 @@
         - velocity (математика)
         - velocity_validator(логика принятия решения)
 
+Разбор evaluate_session
+
+
+след. шаг :
+
+velocity → полноценный фильтр
+
+session-level arbitration
+
+подготовка к real eye-tracker (OpenCV / MediaPipe)
+
 
 
 
