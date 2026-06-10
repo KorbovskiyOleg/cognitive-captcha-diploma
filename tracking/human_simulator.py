@@ -50,6 +50,9 @@ class HumanLikeEyeTracker:
 
             gaze_points.append((x, y, t))
             t += duration / self.points
+        # пробуем вывести точки
+        for i, (x, y, t) in enumerate(gaze_points):
+            print(f"{i:02d}: x={x:.1f}, y={y:.1f}, t={t:.3f}")
 
         return gaze_points
 
