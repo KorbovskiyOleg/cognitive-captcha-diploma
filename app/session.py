@@ -38,16 +38,30 @@ class CognitiveCaptchaSession:
         stimulus_time = time.time()
         self.stimulus_renderer.show(target_name)
 
+
         # собрать gaze-данные
         gaze_points = self.eye_tracker.collect(
             start_time=stimulus_time,
             duration=config.STIMULUS_DURATION,
             target = (target_x,target_y)
         )
+
+        # ПРОВЕРКА: если точек нет - пропускаем скоринг
+        if len(gaze_points) < 2:
+            print(f"[WARNING] Недостаточно точек для анализа: {len(gaze_points)}")
+            self.stimulus_scores.append(0.0)
+            self.raw_scores.append({"error": "no_gaze_data"})
+            return 0.0, {"error": "no_gaze_data"}
+
         # ==============================
         # VELOCITY VALIDATION
         # ==============================
         profile = compute_velocity_profile(gaze_points)
+        if profile is None:
+            print("[WARNING] Не удалось вычислить профиль скорости")
+            self.stimulus_scores.append(0.0)
+            self.raw_scores.append({"error": "velocity_profile_failed"})
+            return 0.0, {"error": "velocity_profile_failed"}
         validation = validate_velocity(profile)
 
         if not validation.is_valid:
