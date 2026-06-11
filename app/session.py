@@ -8,12 +8,14 @@
 # знает что должно произойти
 
 import time
+import random  # ← НОВЫЙ ИМПОРТ
 
 from analysis.scorer import score_stimulus
 from analysis.session_scorer import score_session
 from analysis.dynamics.velocity import compute_velocity_profile
 from analysis.dynamics.velocity_validator import validate_velocity
 import config
+
 
 class CognitiveCaptchaSession:
     """
@@ -31,41 +33,31 @@ class CognitiveCaptchaSession:
         """
         Запуск одного когнитивного стимула
         """
-
         target_x, target_y = config.CORNERS[target_name]
 
-        # показать стимул
         stimulus_time = time.time()
         self.stimulus_renderer.show(target_name)
 
-
-        # собрать gaze-данные
         gaze_points = self.eye_tracker.collect(
             start_time=stimulus_time,
             duration=config.STIMULUS_DURATION,
-            target = (target_x,target_y)
+            target=(target_x, target_y)
         )
 
-        # ПРОВЕРКА: если точек нет - пропускаем скоринг
         if len(gaze_points) < 2:
-            print(f"[WARNING] Недостаточно точек для анализа: {len(gaze_points)}")
             self.stimulus_scores.append(0.0)
             self.raw_scores.append({"error": "no_gaze_data"})
             return 0.0, {"error": "no_gaze_data"}
 
-        # ==============================
-        # VELOCITY VALIDATION
-        # ==============================
         profile = compute_velocity_profile(gaze_points)
         if profile is None:
-            print("[WARNING] Не удалось вычислить профиль скорости")
             self.stimulus_scores.append(0.0)
             self.raw_scores.append({"error": "velocity_profile_failed"})
             return 0.0, {"error": "velocity_profile_failed"}
+
         validation = validate_velocity(profile)
 
         if not validation.is_valid:
-            # движение не похоже на глазное
             self.stimulus_scores.append(0.0)
             self.raw_scores.append({
                 "velocity_validation": validation.reason,
@@ -73,8 +65,6 @@ class CognitiveCaptchaSession:
             })
             return 0.0, {"velocity_validation": validation.reason}
 
-
-        # локальный скоринг
         total, details = score_stimulus(
             gaze_points,
             target_x,
@@ -89,15 +79,25 @@ class CognitiveCaptchaSession:
 
     def run_session(self):
         """
-        Полный цикл CAPTCHA
+        Полный цикл CAPTCHA с рандомным порядком стимулов
         """
+        # === РАНДОМИЗАЦИЯ ПОРЯДКА ===
+        # Создаём копию последовательности чтобы не менять оригинал в config
+        sequence = list(config.STIMULUS_SEQUENCE)
 
-        for target in config.STIMULUS_SEQUENCE:
+        # Перемешиваем
+        random.shuffle(sequence)
+
+        # Логируем получившийся порядок
+        print(f"\n[CognitiveCaptchaSession] Порядок стимулов: {sequence}")
+        print(f"[CognitiveCaptchaSession] Количество стимулов: {len(sequence)}\n")
+
+        # Проходим по перемешанной последовательности
+        for target in sequence:
             self.run_stimulus(target)
             time.sleep(config.INTER_STIMULUS_INTERVAL)
 
         final_score, stats = score_session(self.stimulus_scores)
-
         verdict = final_score >= config.SESSION_THRESHOLD
 
         return {
@@ -105,5 +105,6 @@ class CognitiveCaptchaSession:
             "verdict": verdict,
             "stimuli": self.stimulus_scores,
             "details": self.raw_scores,
-            "stats": stats
+            "stats": stats,
+            "sequence": sequence  # ← ДОБАВЛЯЕМ в результат
         }

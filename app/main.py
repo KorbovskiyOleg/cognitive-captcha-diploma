@@ -8,7 +8,10 @@
 #
 
 from app.session import CognitiveCaptchaSession
+# Старый импорт:
 from tracking.real_eye_tracker import RealEyeTracker
+# Новый импорт:
+#from tracking.gaze_tracking_eyetracker import RealEyeTracker
 from ui.ctk_stimulus_renderer import CtkStimulusRenderer
 
 
@@ -21,7 +24,6 @@ def main():
     )
 
     def on_calibration_complete(calibration_data: dict):
-        """Калибровка завершена, показываем приветственный экран."""
         print(f"[Main] Калибровка завершена")
         eye_tracker.set_calibration(calibration_data)
 
@@ -46,13 +48,11 @@ def main():
         renderer.show_welcome_screen(on_start)
 
     def gaze_collector():
-        """Функция для сбора gaze данных во время калибровки."""
         return eye_tracker.get_recent_gaze_samples(duration=2.0)
 
     print("[Main] Запускаю камеру и калибровку...")
     eye_tracker.start()
 
-    # Сначала калибровка
     renderer.show_calibration_screen(gaze_collector, on_calibration_complete)
     renderer.root.mainloop()
 
