@@ -85,7 +85,7 @@ FEATURE_WEIGHTS = {
 # ==============================
 
 LOWER_THRESHOLD = 0.65
-UPPER_THRESHOLD = 0.90
+UPPER_THRESHOLD = 0.91
 
 #=======================================
 #  Session-level decision config
@@ -108,7 +108,7 @@ STIMULUS_SEQUENCE = [
     "bottom_right"
 ]
 
-SESSION_THRESHOLD = 0.71      # порог для HUMAN
+SESSION_THRESHOLD = 0.78     # порог для HUMAN
 
 
 # ==============================

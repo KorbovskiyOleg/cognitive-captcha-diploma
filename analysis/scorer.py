@@ -122,6 +122,7 @@ def bounds_score(out_ratio):
 def compute_angle_error(gaze_points, target_x, target_y):
     """
     Считает угол направления движения ТОЛЬКО ПО ГОРИЗОНТАЛИ.
+    Возвращает угол от 0° (идеально) до 180° (противоположно).
     """
     if len(gaze_points) < 2:
         return 180.0
@@ -135,13 +136,56 @@ def compute_angle_error(gaze_points, target_x, target_y):
     if abs(dx_movement) < 1:
         return 180.0
 
-    if (dx_movement > 0 and dx_target > 0) or (dx_movement < 0 and dx_target < 0):
-        return 0.0
+    # Вычисляем насколько направление совпадает (0 = идеально, 1 = противоположно)
+    # Если оба в одну сторону — ratio положительный
+    # Если в разные стороны — ratio отрицательный
+    if abs(dx_target) < 1:
+        return 0.0  # target прямо перед нами
 
-    return 180.0
+    ratio = (dx_movement / abs(dx_movement)) * (dx_target / abs(dx_target))
+
+    # ratio = 1 → идеальное совпадение → угол 0°
+    # ratio = -1 → противоположно → угол 180°
+    # ratio = 0.5 → частичное совпадение → угол ~60°
+
+    if ratio >= 1.0:
+        return 0.0
+    elif ratio <= -1.0:
+        return 180.0
+    else:
+        # Линейная интерполяция: ratio от -1 до 1 → угол от 180° до 0°
+        return (1 - ratio) * 90.0  # ratio=1 → 0°, ratio=-1 → 180°, ratio=0 → 90°
 
 def angle_score(angle_error):
     return max(0.0, 1 - angle_error / 90)
+
+
+#==================================================================================================
+#                           Признак №5 - Dispersion (разброс точек)
+#==================================================================================================
+def compute_dispersion(gaze_points):
+    """
+    Считает средний разброс точек (стандартное отклонение) по X.
+    Высокий разброс = хаотичные движения.
+    """
+    if len(gaze_points) < 2:
+        return 0.0
+
+    x_coords = [p[0] for p in gaze_points]
+    mean_x = sum(x_coords) / len(x_coords)
+    variance = sum((x - mean_x) ** 2 for x in x_coords) / len(x_coords)
+    std_dev = variance ** 0.5
+
+    return std_dev
+
+def dispersion_score(dispersion):
+    """
+    Нормализация: низкий разброс = высокий score.
+    """
+    # Максимальный разброс = ширина экрана
+    max_dispersion = config.SCREEN_WIDTH / 2  # 960 пикселей
+    score = 1 - (dispersion / max_dispersion)
+    return max(0.0, min(score, 1.0))
 
 #======================================================================================================
 #                               Общий score для одного стимула
@@ -153,12 +197,14 @@ def score_stimulus(gaze_points, target_x, target_y, stimulus_time):
     out_ratio = compute_out_of_bounds_ratio(
         gaze_points, target_x, target_y, stimulus_time
     )
+    dispersion = compute_dispersion(gaze_points)
 
     scores = {
         "latency": latency_score(latency),
         "distance_error": distance_score(distance_err),
         "angle_error": angle_score(angle_err),
         "out_of_bounds_ratio": bounds_score(out_ratio),
+        "dispersion": dispersion_score(dispersion),
     }
 
     total = sum(
