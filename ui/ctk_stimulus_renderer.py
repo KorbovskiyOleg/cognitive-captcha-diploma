@@ -342,8 +342,14 @@ class CtkStimulusRenderer:
         self.root.update()
         time.sleep(0.1)
 
-    def show_result(self, success: bool):
-        """Показать экран результата по центру."""
+    def show_result(self, success: bool, result: dict = None):
+        """
+        Показать экран результата с детальной информацией по признакам.
+
+        Args:
+            success: True если капча пройдена
+            result: словарь с результатами сессии
+        """
         if not self._initialized:
             self.init_window()
 
@@ -355,52 +361,285 @@ class CtkStimulusRenderer:
         # Затемнение фона
         overlay = ctk.CTkFrame(
             self.root,
-            fg_color=("white", "black"),
+            fg_color=("#f0f0f0", "#1a1a1a"),
             width=config.SCREEN_WIDTH,
             height=config.SCREEN_HEIGHT
         )
         overlay.place(x=0, y=0)
 
-        # Карточка результата
-        card_width = 500
-        card_height = 300
-        card = ctk.CTkFrame(
+        # === ВЕРХНЯЯ ЧАСТЬ: Заголовок и итог ===
+        title_card_width = 600
+        title_card_height = 200
+        title_card = ctk.CTkFrame(
             overlay,
-            width=card_width,
-            height=card_height,
+            width=title_card_width,
+            height=title_card_height,
             corner_radius=20,
-            fg_color=("#2b2b2b", "#1a1a1a")
+            fg_color=("#2b2b2b", "#2b2b2b")
         )
-        card.place(
-            x=(config.SCREEN_WIDTH - card_width) // 2,
-            y=(config.SCREEN_HEIGHT - card_height) // 2
+        title_card.place(
+            x=(config.SCREEN_WIDTH - title_card_width) // 2,
+            y=30
         )
-        card.pack_propagate(False)
+        title_card.pack_propagate(False)
 
-        title = "✓ Капча пройдена" if success else "✗ Капча не пройдена"
-        color = "green" if success else "red"
+        title = "✓ КАПЧА ПРОЙДЕНА" if success else "✗ КАПЧА НЕ ПРОЙДЕНА"
+        color = ("#4CAF50", "#4CAF50") if success else ("#F44336", "#F44336")
 
         ctk.CTkLabel(
-            card, text=title,
-            font=ctk.CTkFont(size=28, weight="bold"),
+            title_card, text=title,
+            font=ctk.CTkFont(size=36, weight="bold"),
             text_color=color
-        ).pack(pady=(50, 10))
+        ).pack(pady=(30, 5))
 
         if self.user_name:
             ctk.CTkLabel(
-                card,
+                title_card,
                 text=f"Пользователь: {self.user_name}",
                 font=ctk.CTkFont(size=16),
-                text_color="gray"
-            ).pack(pady=(0, 20))
+                text_color=("gray", "gray")
+            ).pack(pady=(0, 10))
 
-        ctk.CTkButton(
-            card, text="Закрыть",
-            command=self.root.destroy,
-            width=160, height=40
+        # Итоговый скор
+        final_score = result.get("final_score", 0.0) if result else 0.0
+        ctk.CTkLabel(
+            title_card,
+            text=f"Итоговый скор: {final_score:.3f}",
+            font=ctk.CTkFont(size=22, weight="bold"),
+            text_color=("white", "white")
         ).pack()
 
+        # === СРЕДНЯЯ ЧАСТЬ: Детальная информация ===
+        details_width = 1600
+        details_height = 650
+
+        scrollable_frame = ctk.CTkScrollableFrame(
+            overlay,
+            width=details_width,
+            height=details_height,
+            corner_radius=15,
+            fg_color=("#ffffff", "#2b2b2b")
+        )
+        scrollable_frame.place(
+            x=(config.SCREEN_WIDTH - details_width) // 2,
+            y=250
+        )
+
+        if result:
+            self._render_result_details(scrollable_frame, result)
+        else:
+            ctk.CTkLabel(
+                scrollable_frame,
+                text="Нет детальной информации",
+                font=ctk.CTkFont(size=16),
+                text_color="gray"
+            ).pack(pady=20)
+
+        # === НИЖНЯЯ ЧАСТЬ: Кнопка закрытия ===
+        close_btn = ctk.CTkButton(
+            overlay,
+            text="Закрыть",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            width=200,
+            height=50,
+            corner_radius=10,
+            command=self.root.destroy
+        )
+        close_btn.place(
+            x=(config.SCREEN_WIDTH - 200) // 2,
+            y=config.SCREEN_HEIGHT - 80
+        )
+
         self.root.update()
+
+    def _render_result_details(self, parent, result: dict):
+        """Рендерит детальную информацию о результатах."""
+
+        # === Статистика сессии ===
+        stats_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        stats_frame.pack(fill="x", padx=20, pady=10)
+
+        ctk.CTkLabel(
+            stats_frame,
+            text="📊 Статистика сессии",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=("#2196F3", "#2196F3")
+        ).pack(anchor="w")
+
+        stats = result.get("stats", {})
+        sequence = result.get("sequence", [])
+
+        stats_text = (
+            f"Средний скор: {stats.get('mean', 0):.3f}    |    "
+            f"Стандартное отклонение: {stats.get('stdev', 0):.3f}    |    "
+            f"Количество стимулов: {stats.get('count', 0)}    |    "
+            f"Порог: {config.SESSION_THRESHOLD:.2f}"
+        )
+        ctk.CTkLabel(
+            stats_frame,
+            text=stats_text,
+            font=ctk.CTkFont(size=14),
+            text_color=("gray", "gray")
+        ).pack(anchor="w", pady=(5, 0))
+
+        seq_text = f"Порядок стимулов: {' → '.join(sequence)}"
+        ctk.CTkLabel(
+            stats_frame,
+            text=seq_text,
+            font=ctk.CTkFont(size=14),
+            text_color=("gray", "gray")
+        ).pack(anchor="w", pady=(5, 0))
+
+        # Разделитель
+        ctk.CTkFrame(parent, height=2, fg_color=("gray", "gray")).pack(
+            fill="x", padx=20, pady=15
+        )
+
+        # === Детали по стимулам (сетка 2x2) ===
+        ctk.CTkLabel(
+            parent,
+            text="📋 Детали по каждому стимулу",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=("#2196F3", "#2196F3")
+        ).pack(anchor="w", padx=20)
+
+        stimuli_scores = result.get("stimuli", [])
+        details = result.get("details", [])
+
+        # Сетка 2 колонки
+        grid_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        grid_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        grid_frame.grid_columnconfigure(0, weight=1)
+        grid_frame.grid_columnconfigure(1, weight=1)
+
+        for i, (score, detail) in enumerate(zip(stimuli_scores, details)):
+            row = i // 2
+            col = i % 2
+            target_name = sequence[i] if i < len(sequence) else f"stimulus_{i}"
+
+            self._render_stimulus_card(
+                grid_frame, row, col,
+                i + 1, target_name, score, detail
+            )
+    def _render_stimulus_card(self, parent, row, col, num, target_name, score, detail):
+        """Рендерит карточку одного стимула."""
+
+        # Цвет карточки в зависимости от score
+        if score >= 0.7:
+            border_color = ("#4CAF50", "#4CAF50")  # зелёный
+        elif score >= 0.5:
+            border_color = ("#FF9800", "#FF9800")  # оранжевый
+        else:
+            border_color = ("#F44336", "#F44336")  # красный
+
+        card = ctk.CTkFrame(
+            parent,
+            corner_radius=10,
+            fg_color=("#f9f9f9", "#363636"),
+            border_width=2,
+            border_color=border_color
+        )
+        card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+
+        # Заголовок карточки
+        header_frame = ctk.CTkFrame(card, fg_color="transparent")
+        header_frame.pack(fill="x", padx=15, pady=(10, 5))
+
+        ctk.CTkLabel(
+            header_frame,
+            text=f"Стимул #{num}: {target_name}",
+            font=ctk.CTkFont(size=16, weight="bold")
+        ).pack(side="left")
+
+        # Скор справа
+        score_color = ("#4CAF50", "#4CAF50") if score >= 0.7 else (
+            ("#FF9800", "#FF9800") if score >= 0.5 else ("#F44336", "#F44336")
+        )
+        ctk.CTkLabel(
+            header_frame,
+            text=f"{score:.3f}",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=score_color
+        ).pack(side="right")
+
+        # Разделитель
+        ctk.CTkFrame(card, height=1, fg_color=("gray", "gray")).pack(
+            fill="x", padx=15, pady=5
+        )
+
+        # Содержимое
+        content_frame = ctk.CTkFrame(card, fg_color="transparent")
+        content_frame.pack(fill="x", padx=15, pady=(5, 10))
+
+        if "error" in detail:
+            # Ошибка
+            ctk.CTkLabel(
+                content_frame,
+                text=f"❌ Ошибка: {detail['error']}",
+                font=ctk.CTkFont(size=13),
+                text_color=("#F44336", "#F44336")
+            ).pack(anchor="w")
+        elif "velocity_validation" in detail:
+            # Velocity validation failed
+            ctk.CTkLabel(
+                content_frame,
+                text=f"❌ Velocity: {detail['velocity_validation']}",
+                font=ctk.CTkFont(size=13),
+                text_color=("#F44336", "#F44336")
+            ).pack(anchor="w")
+
+            vel_details = detail.get("velocity_details", {})
+            if vel_details:
+                ctk.CTkLabel(
+                    content_frame,
+                    text=f"   Детали: {vel_details}",
+                    font=ctk.CTkFont(size=11),
+                    text_color=("gray", "gray")
+                ).pack(anchor="w")
+        else:
+            # Нормальные признаки
+            feature_names = {
+                "latency": "⏱ Latency (задержка)",
+                "distance_error": "📏 Distance (расстояние)",
+                "angle_error": "🧭 Angle (угол)",
+                "out_of_bounds_ratio": "🎯 In-bounds (в зоне)",
+                "dispersion": "〰️ Dispersion (разброс)"
+            }
+
+            for key, display_name in feature_names.items():
+                if key in detail:
+                    value = detail[key]
+                    # Форматирование значения
+                    if isinstance(value, (int, float)):
+                        value_str = f"{value:.3f}"
+                        # Цвет в зависимости от значения
+                        if value >= 0.7:
+                            val_color = ("#4CAF50", "#4CAF50")
+                        elif value >= 0.4:
+                            val_color = ("#FF9800", "#FF9800")
+                        else:
+                            val_color = ("#F44336", "#F44336")
+                    else:
+                        value_str = str(value)
+                        val_color = ("black", "white")
+
+                    row_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+                    row_frame.pack(fill="x", pady=2)
+
+                    ctk.CTkLabel(
+                        row_frame,
+                        text=display_name,
+                        font=ctk.CTkFont(size=12),
+                        anchor="w"
+                    ).pack(side="left")
+
+                    ctk.CTkLabel(
+                        row_frame,
+                        text=value_str,
+                        font=ctk.CTkFont(size=12, weight="bold"),
+                        text_color=val_color
+                    ).pack(side="right")
+
 
     def close(self):
         """Закрытие окна."""

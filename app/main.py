@@ -41,7 +41,7 @@ def main():
             print(result)
 
             success = result.get("verdict", False)
-            renderer.show_result(success)
+            renderer.show_result(success,result)
 
             eye_tracker.stop()
 
