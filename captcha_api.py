@@ -19,11 +19,10 @@ from pydantic import BaseModel
 from analysis.scorer import score_stimulus
 
 # === НАСТРОЙКИ ===
-# ЗАМЕНИ НА СВОИ ДАННЫЕ ПОДКЛЮЧЕНИЯ К POSTGRESQL!
 DB_CONFIG = {
-    "dbname": "cardb",
-    "user": "postgres",       # Твой пользователь БД
-    "password": "karbit",   # Твой пароль БД
+    "dbname": "****",
+    "user": " ***** "
+    "password": " ***** "
     "host": "localhost",
     "port": "5432"
 }
@@ -31,7 +30,7 @@ DB_CONFIG = {
 # Размеры экрана (должны совпадать с JS и Java)
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
-SESSION_THRESHOLD = 0.3
+SESSION_THRESHOLD = 0.3 # порог принятия решения
 
 # MediaPipe
 import mediapipe as mp
@@ -190,7 +189,7 @@ def calculate_calibration(gaze_data: Dict[str, tuple]) -> Dict[str, float]:
     scale_y = (980 - 100) / (gaze_y_bottom - gaze_y_top)
     offset_y = 100 - scale_y * gaze_y_top
 
-    # === ЗАЩИТА ОТ ИНВЕРСИИ Y (как в твоем десктопном приложении) ===
+    # === ЗАЩИТА ОТ ИНВЕРСИИ Y ===
     if scale_y < 0:
         print("[API] WARNING: Инверсия Y, исправляю")
         scale_y = 1500
