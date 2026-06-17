@@ -1,6 +1,3 @@
-# интеллект системы
-
-# вычисление признаков
 # штрафы
 # локальный score стимула
 # агрегирование
@@ -20,10 +17,21 @@ GazePoint = Tuple[float, float, float]  # (x, y, t)
 def euclidean_distance(x1, y1, x2, y2):
     return abs(x2 - x1)
 
-# проверяем, точка внутри рамки ТОЛЬКО ПО X (Y отключён)
+# проверяем, точка внутри рамки (по X и Y + пределы экрана)
 def is_inside_bounds(x, y, target_x, target_y):
     half_w = config.BOUND_BOX_WIDTH / 2
-    return target_x - half_w <= x <= target_x + half_w
+    half_h = config.BOUND_BOX_HEIGHT / 2
+
+    # Проверка по X
+    in_x = target_x - half_w <= x <= target_x + half_w
+
+    # Проверка по Y (с увеличенным допуском из-за неточности MediaPipe)
+    in_y = target_y - half_h <= y <= target_y + half_h
+
+    # Проверка, что точка в пределах экрана
+    in_screen = 0 <= x <= config.SCREEN_WIDTH and 0 <= y <= config.SCREEN_HEIGHT
+
+    return in_x and in_y and in_screen
 
 
 #=======================================================================================
@@ -95,7 +103,7 @@ def distance_score(distance_error):
     return max(0.0, min(score, 1.0))
 
 #===============================================================================================
-#                                 Признак №3 - Out ratio (ТОЛЬКО ПО X)
+#                                 Признак №3 - Out ratio (по X и Y + пределы экрана)
 #===============================================================================================
 def compute_out_of_bounds_ratio(gaze_points, target_x, target_y, stimulus_time):
     valid_points = [

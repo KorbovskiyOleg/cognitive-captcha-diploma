@@ -73,9 +73,21 @@ class CognitiveCaptchaSession:
         )
 
         self.stimulus_scores.append(total)
-        self.raw_scores.append(details)
+        #self.raw_scores.append(details)
 
-        return total, details
+        # === ДОБАВЛЕНО: сохраняем точки и детали ===
+        details_with_trajectory = {
+            **details,
+            "gaze_points": gaze_points,  # Сохраняем траекторию
+            "target_x": target_x,
+            "target_y": target_y
+        }
+        self.raw_scores.append(details_with_trajectory)
+        # ============================================
+
+        return total, details_with_trajectory
+
+
 
     def run_session(self):
         """

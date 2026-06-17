@@ -7,6 +7,10 @@ from PIL import Image, ImageDraw
 import time
 import config
 from typing import Callable, List, Tuple
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+import numpy as np
+import io
 
 
 class CtkStimulusRenderer:
@@ -521,8 +525,117 @@ class CtkStimulusRenderer:
                 grid_frame, row, col,
                 i + 1, target_name, score, detail
             )
+
+    def _create_trajectory_plot(self, gaze_points, target_x, target_y, score):
+        """
+        Создаёт график траектории взгляда для одного стимула.
+        Возвращает PIL Image.
+        """
+        if not gaze_points:
+            return None
+
+        # Извлекаем координаты
+        x_coords = [p[0] for p in gaze_points]
+        y_coords = [p[1] for p in gaze_points]
+        times = [p[2] for p in gaze_points]
+
+        # Нормализуем время для цветовой карты
+        if len(times) > 1:
+            time_norm = [(t - times[0]) / (times[-1] - times[0]) for t in times]
+        else:
+            time_norm = [0] * len(times)
+
+        # Создаём фигуру
+        fig, ax = plt.subplots(1, 1, figsize=(6, 4), dpi=100)
+        fig.patch.set_facecolor('#2b2b2b')
+        ax.set_facecolor('#1a1a1a')
+
+        # Рисуем траекторию с цветовой картой по времени
+        scatter = ax.scatter(
+            x_coords, y_coords,
+            c=time_norm,
+            cmap='viridis',
+            s=20,
+            alpha=0.7,
+            edgecolors='white',
+            linewidth=0.5
+        )
+
+        # Рисуем линию траектории
+        ax.plot(x_coords, y_coords, 'w-', linewidth=1, alpha=0.3)
+
+        # Рисуем целевую точку
+        ax.scatter(
+            [target_x], [target_y],
+            c='red',
+            s=200,
+            marker='X',
+            edgecolors='white',
+            linewidth=2,
+            label='Цель',
+            zorder=5
+        )
+
+        # Рисуем рамку целевой зоны
+        half_w = config.BOUND_BOX_WIDTH / 2
+        target_rect = plt.Rectangle(
+            (target_x - half_w, target_y - half_w),
+            config.BOUND_BOX_WIDTH,
+            config.BOUND_BOX_WIDTH,
+            fill=False,
+            color='yellow',
+            linewidth=2,
+            linestyle='--',
+            label='Целевая зона',
+            zorder=3
+        )
+        ax.add_patch(target_rect)
+
+        # Настройки осей
+        ax.set_xlim(0, config.SCREEN_WIDTH)
+        ax.set_ylim(0, config.SCREEN_HEIGHT)
+        ax.set_aspect('equal')
+        ax.invert_yaxis()  # Инвертируем Y чтобы было как на экране
+
+        # Подписи
+        ax.set_xlabel('X (пиксели)', color='white', fontsize=10)
+        ax.set_ylabel('Y (пиксели)', color='white', fontsize=10)
+        ax.set_title(
+            f'Траектория взгляда\nScore: {score:.3f}',
+            color='white',
+            fontsize=12,
+            fontweight='bold'
+        )
+
+        # Цвет сетки
+        ax.grid(True, alpha=0.2, color='gray')
+        ax.tick_params(colors='white')
+
+        # Легенда
+        ax.legend(loc='upper right', facecolor='#2b2b2b', edgecolor='white',
+                  labelcolor='white', fontsize=8)
+
+        # Добавляем colorbar для времени
+        cbar = plt.colorbar(scatter, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label('Время (нормализованное)', color='white', fontsize=8)
+        cbar.ax.tick_params(labelsize=7, colors='white')
+
+        plt.tight_layout()
+
+        # Конвертируем в PIL Image
+        canvas = FigureCanvasAgg(fig)
+        buf = io.BytesIO()
+        canvas.print_figure(buf, format='png', bbox_inches='tight',
+                            facecolor=fig.get_facecolor())
+        buf.seek(0)
+
+        img = Image.open(buf)
+        plt.close(fig)
+
+        return img
+
     def _render_stimulus_card(self, parent, row, col, num, target_name, score, detail):
-        """Рендерит карточку одного стимула."""
+        """Рендерит карточку одного стимула с графиком траектории."""
 
         # Цвет карточки в зависимости от score
         if score >= 0.7:
@@ -566,6 +679,35 @@ class CtkStimulusRenderer:
         ctk.CTkFrame(card, height=1, fg_color=("gray", "gray")).pack(
             fill="x", padx=15, pady=5
         )
+
+        # === НОВОЕ: График траектории ===
+        if "gaze_points" in detail and "target_x" in detail:
+            gaze_points = detail["gaze_points"]
+            target_x = detail["target_x"]
+            target_y = detail["target_y"]
+
+            try:
+                trajectory_img = self._create_trajectory_plot(
+                    gaze_points, target_x, target_y, score
+                )
+
+                if trajectory_img:
+                    # Конвертируем в CTkImage
+                    ctk_img = ctk.CTkImage(
+                        light_image=trajectory_img,
+                        dark_image=trajectory_img,
+                        size=(350, 230)  # Размер графика
+                    )
+
+                    img_label = ctk.CTkLabel(
+                        card,
+                        image=ctk_img,
+                        text=""
+                    )
+                    img_label.pack(pady=10)
+            except Exception as e:
+                print(f"[WARNING] Не удалось создать график траектории: {e}")
+        # ===========================================
 
         # Содержимое
         content_frame = ctk.CTkFrame(card, fg_color="transparent")
@@ -639,7 +781,6 @@ class CtkStimulusRenderer:
                         font=ctk.CTkFont(size=12, weight="bold"),
                         text_color=val_color
                     ).pack(side="right")
-
 
     def close(self):
         """Закрытие окна."""

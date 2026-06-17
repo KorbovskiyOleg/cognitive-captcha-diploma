@@ -89,6 +89,7 @@ def get_gaze_from_frame(frame: np.ndarray) -> Optional[tuple]:
     """
     Вычисляет нормализованные координаты взгляда через отношение
     позиции зрачка к размеру глаза.
+    ИСПОЛЬЗУЕТ ТУ ЖЕ ФОРМУЛУ, ЧТО И ДЕСКТОПНАЯ ВЕРСИЯ!
     """
     if frame is None:
         return None
@@ -100,54 +101,62 @@ def get_gaze_from_frame(frame: np.ndarray) -> Optional[tuple]:
         return None
 
     landmarks = results.multi_face_landmarks[0].landmark
+    h, w, _ = frame.shape
 
     # === ЛЕВЫЙ ГЛАЗ ===
-    left_eye_inner = landmarks[133]
-    left_eye_outer = landmarks[33]
+    left_iris = landmarks[468]
+    left_eye_left = landmarks[33]
+    left_eye_right = landmarks[133]
     left_eye_top = landmarks[159]
     left_eye_bottom = landmarks[145]
-    left_iris_center = landmarks[468]
 
-    left_eye_width = abs(left_eye_outer.x - left_eye_inner.x)
-    left_eye_height = abs(left_eye_top.y - left_eye_bottom.y)
+    # Пиксельные координаты
+    iris_x = left_iris.x * w
+    iris_y = left_iris.y * h
 
-    if left_eye_width < 0.001 or left_eye_height < 0.001:
-        return None
+    eye_width = abs(left_eye_right.x - left_eye_left.x) * w
+    eye_height = abs(left_eye_bottom.y - left_eye_top.y) * h
 
-    left_ratio_x = (left_iris_center.x - left_eye_inner.x) / left_eye_width
-    left_ratio_y = (left_iris_center.y - left_eye_top.y) / left_eye_height
+    # ЦЕНТР глаза (как в десктопной версии!)
+    eye_center_x = (left_eye_left.x + left_eye_right.x) / 2.0 * w
+    eye_center_y = (left_eye_top.y + left_eye_bottom.y) / 2.0 * h
+
+    # ratio = смещение от ЦЕНТРА (как в десктопной версии!)
+    left_ratio_x = (iris_x - eye_center_x) / (eye_width / 2.0)
+    left_ratio_y = (iris_y - eye_center_y) / (eye_height / 2.0)
 
     # === ПРАВЫЙ ГЛАЗ ===
-    right_eye_inner = landmarks[362]
-    right_eye_outer = landmarks[263]
+    right_iris = landmarks[473]
+    right_eye_left = landmarks[362]
+    right_eye_right = landmarks[263]
     right_eye_top = landmarks[386]
     right_eye_bottom = landmarks[374]
-    right_iris_center = landmarks[473]
 
-    right_eye_width = abs(right_eye_outer.x - right_eye_inner.x)
-    right_eye_height = abs(right_eye_top.y - right_eye_bottom.y)
+    right_iris_x = right_iris.x * w
+    right_iris_y = right_iris.y * h
 
-    if right_eye_width < 0.001 or right_eye_height < 0.001:
-        return None
+    right_eye_width = abs(right_eye_right.x - right_eye_left.x) * w
+    right_eye_height = abs(right_eye_bottom.y - right_eye_top.y) * h
 
-    right_ratio_x = (right_iris_center.x - right_eye_inner.x) / right_eye_width
-    right_ratio_y = (right_iris_center.y - right_eye_top.y) / right_eye_height
+    right_eye_center_x = (right_eye_left.x + right_eye_right.x) / 2.0 * w
+    right_eye_center_y = (right_eye_top.y + right_eye_bottom.y) / 2.0 * h
+
+    right_ratio_x = (right_iris_x - right_eye_center_x) / (right_eye_width / 2.0)
+    right_ratio_y = (right_iris_y - right_eye_center_y) / (right_eye_height / 2.0)
 
     # === УСРЕДНЕНИЕ ===
     avg_ratio_x = (left_ratio_x + right_ratio_x) / 2.0
     avg_ratio_y = (left_ratio_y + right_ratio_y) / 2.0
 
     # === ОТЛАДКА ===
-    print(f"  [DEBUG] raw: ratio_x={avg_ratio_x:.3f}, ratio_y={avg_ratio_y:.3f}")
+    print(f"  [DEBUG] ratio_x={avg_ratio_x:.3f}, ratio_y={avg_ratio_y:.3f}")
 
-    # === ПРАВИЛЬНАЯ НОРМАЛИЗАЦИЯ ===
-    # ratio_x: от -0.15 (лево) до +0.15 (право) → gaze_x от 0 до 1
-    gaze_x = (avg_ratio_x + 0.15) / 0.30
-    gaze_x = max(0.0, min(1.0, gaze_x))
+    # === НОРМАЛИЗАЦИЯ (как в десктопной версии!) ===
+    gaze_x = np.clip((avg_ratio_x + 1.0) / 2.0, 0.0, 1.0)
+    gaze_y = np.clip((avg_ratio_y + 1.0) / 2.0, 0.0, 1.0)
 
-    # ratio_y: от 0.30 (верх) до 0.50 (низ) → gaze_y от 0 до 1
-    gaze_y = (avg_ratio_y - 0.30) / 0.20
-    gaze_y = max(0.0, min(1.0, gaze_y))
+    # Инверсия X для зеркала (как в десктопной версии!)
+    gaze_x = 1.0 - gaze_x
 
     print(f"  [DEBUG] normalized: gaze_x={gaze_x:.3f}, gaze_y={gaze_y:.3f}")
 
@@ -280,14 +289,24 @@ def verify_endpoint(req: VerifyRequest):
     calibration = session["calibration"]
 
     all_scores = []
+    all_details = []
+    all_trajectories = []
 
     # Обрабатываем каждый стимул
     for target_name in req.sequence:
         frames_b64 = req.frames_by_target.get(target_name, [])
         if not frames_b64:
+            all_scores.append(0.0)
+            all_details.append({"error": "no_frames"})
+            all_trajectories.append({"points": [], "target_x": 960, "target_y": 540})
             continue
 
         target_x, target_y = TARGET_COORDS.get(target_name, (960, 540))
+
+        # === БУФЕР СГЛАЖИВАНИЯ ===
+        smoothing_buffer = []
+        SMOOTHING_WINDOW = 5  # Усредняем последние 5 кадров
+
         raw_gaze_points = []
         stimulus_time = time.time()
 
@@ -295,23 +314,66 @@ def verify_endpoint(req: VerifyRequest):
             img = decode_base64_image(b64)
             gaze = get_gaze_from_frame(img)
             if gaze:
-                raw_gaze_points.append((gaze[0], gaze[1], time.time()))
+                # Добавляем сырую точку в буфер
+                smoothing_buffer.append((gaze[0], gaze[1]))
 
-        # Применяем калибровку
+                # Пока буфер не заполнен — пропускаем (ждём стабильности)
+                if len(smoothing_buffer) < SMOOTHING_WINDOW:
+                    continue
+
+                # Усредняем последние N точек
+                recent = smoothing_buffer[-SMOOTHING_WINDOW:]
+                avg_x = sum(p[0] for p in recent) / len(recent)
+                avg_y = sum(p[1] for p in recent) / len(recent)
+
+                # Добавляем сглаженную точку
+                raw_gaze_points.append((avg_x, avg_y, time.time()))
+
+        # Применяем калибровку к сглаженным точкам
         calibrated_points = apply_calibration(raw_gaze_points, calibration)
 
         if len(calibrated_points) < 5:
             all_scores.append(0.0)
+            all_details.append({"error": "not_enough_points"})
+            all_trajectories.append({"points": [], "target_x": target_x, "target_y": target_y})
             continue
 
-        # Считаем скор через твой анализатор
+        # Считаем скор через анализатор
         score, details = score_stimulus(calibrated_points, target_x, target_y, stimulus_time)
         all_scores.append(score)
-        print(f"[API] Stimulus {target_name} score: {score:.3f}")
+
+        # Сохраняем детали и траекторию
+        all_details.append(details)
+        trajectory = [
+            {"x": round(p[0], 1), "y": round(p[1], 1), "t": round(p[2], 3)}
+            for p in calibrated_points
+        ]
+        all_trajectories.append({
+            "points": trajectory,
+            "target_x": target_x,
+            "target_y": target_y
+        })
+
+        print(f"[API] Stimulus {target_name} score: {score:.3f} (points: {len(calibrated_points)})")
 
     # Итоговый скор (среднее)
     final_score = sum(all_scores) / len(all_scores) if all_scores else 0.0
     print(f"[API] Final score: {final_score:.3f}")
+
+    # Вычисляем статистику
+    import statistics
+    if len(all_scores) > 1:
+        stats = {
+            "mean": round(final_score, 3),
+            "stdev": round(statistics.stdev(all_scores), 3),
+            "count": len(all_scores)
+        }
+    else:
+        stats = {
+            "mean": round(final_score, 3),
+            "stdev": 0.0,
+            "count": len(all_scores)
+        }
 
     # Удаляем сессию из памяти
     del active_sessions[req.session_id]
@@ -319,9 +381,29 @@ def verify_endpoint(req: VerifyRequest):
     if final_score >= SESSION_THRESHOLD:
         token = str(uuid.uuid4())
         save_token_to_db(token)
-        return {"success": True, "token": token, "score": final_score}
+        return {
+            "success": True,
+            "token": token,
+            "score": round(final_score, 3),
+            "stimuli": [round(s, 3) for s in all_scores],
+            "details": all_details,
+            "trajectories": all_trajectories,
+            "stats": stats,
+            "sequence": req.sequence,
+            "threshold": SESSION_THRESHOLD
+        }
     else:
-        return {"success": False, "error": f"Score too low: {final_score:.3f}", "score": final_score}
+        return {
+            "success": False,
+            "error": f"Score too low: {final_score:.3f}",
+            "score": round(final_score, 3),
+            "stimuli": [round(s, 3) for s in all_scores],
+            "details": all_details,
+            "trajectories": all_trajectories,
+            "stats": stats,
+            "sequence": req.sequence,
+            "threshold": SESSION_THRESHOLD
+        }
 
 if __name__ == "__main__":
     import uvicorn

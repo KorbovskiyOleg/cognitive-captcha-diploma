@@ -108,7 +108,7 @@ STIMULUS_SEQUENCE = [
     "bottom_right"
 ]
 
-SESSION_THRESHOLD = 0.3     # порог для HUMAN
+SESSION_THRESHOLD = 0.65     # порог для HUMAN
 
 
 # ==============================
