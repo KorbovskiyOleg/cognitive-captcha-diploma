@@ -9,6 +9,9 @@
 
 
 
+<img width="1536" height="1024" alt="моя схема архитектуры" src="https://github.com/user-attachments/assets/33898b43-8e56-4310-9ded-18d51b428912" />
+
+
 
 
 
