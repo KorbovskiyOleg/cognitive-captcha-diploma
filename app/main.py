@@ -8,9 +8,7 @@
 #
 
 from app.session import CognitiveCaptchaSession
-# Старый импорт:
 from tracking.real_eye_tracker import RealEyeTracker
-# Новый импорт:
 #from tracking.gaze_tracking_eyetracker import RealEyeTracker
 from ui.ctk_stimulus_renderer import CtkStimulusRenderer
 
